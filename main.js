@@ -25,6 +25,7 @@ global.alert = function(...args) {
 
 const puz = require("./js/puz");
 const funcs = require("./js/puz_functions");
+const jsc = require("./js/jscrossword_combined");
 
 // requiring these loads them into jspdf
 require("./js/NunitoSans-Regular-bold");
@@ -36,7 +37,8 @@ require("./js/RobotoCondensed-normal");
 
 function convert(filename, solution) {
   var contents = fs.readFileSync(filename).toString('binary');
-  var puzdata = puz.parsepuz(contents);
+  var xw_constructor = new jsc.JSCrossword();
+  var puzdata = xw_constructor.fromData(contents);
   var outname = filename.replace(/[.](puz|ipuz|jpz|rgz)$/, '.pdf');
   if (outname === filename)
     outname += '.pdf';
