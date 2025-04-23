@@ -39,12 +39,18 @@ function convert(filename, solution) {
   var contents = fs.readFileSync(filename).toString('binary');
   var xw_constructor = new jsc.JSCrossword();
   var puzdata = xw_constructor.fromData(contents);
+
   var outname = filename.replace(/[.](puz|ipuz|jpz|rgz)$/, '.pdf');
   if (outname === filename)
     outname += '.pdf';
   if (solution) {
     outname = outname.replace('.pdf', '-solution.pdf');
   }
+
+  // Use filename (which in my case has the outlet and date) as copyright text.
+  var outlet_name = filename.replace(/[.](puz|ipuz|jpz|rgz)$/, '');
+  outlet_name = outlet_name.split("/")[1];
+
   var options = {
     outfile: outname,
     output: 'download',
@@ -54,11 +60,9 @@ function convert(filename, solution) {
     header2_align: 'right',
     subheader_align: 'left',
     y_align: 'alphabetic',
-    gray: 0,
-    // number: document.getElementById('numberSize').value,
-    // clue_entry_pt: document.getElementById('cFontSize').value*1,
-    // header_pt: document.getElementById('hFontSize').value*1,
-    // header2_pt: document.getElementById('h2FontSize').value*1,
+    gray: '#bbbbbb',
+    header_pt: 12,
+    header2_pt: 12,
     // subheader_pt: document.getElementById('sFontSize').value*1,
     margin: 36,
     side_margin: 36,
@@ -77,15 +81,14 @@ function convert(filename, solution) {
     number_style: 'bold',
     shade: false,
     solution: solution,
-    // header_font: document.getElementById('headerFont').value,
-    // grid_font: document.getElementById('gridFont').value,
-    // clue_font: document.getElementById('clueFont').value,
+    header_font: 'NunitoSans-Regular',
+    grid_font: 'NunitoSans-Regular',
+    clue_font: 'NunitoSans-Regular',
     right_header: true,
     subheader: false,
-    copyright: true,
-    // copyright_text: document.getElementById('copyright').value,
-    // columns: document.getElementById('columns').value,
-    grid_placement: 'top'
+    copyright_text: outlet_name,
+    columns: 3,
+    grid_placement: 'bottom'
     // logoX: document.getElementById('logoX').value*1,
     // logoY: document.getElementById('logoY').value*1,
     // logoS: document.getElementById('logoS').value/100,
