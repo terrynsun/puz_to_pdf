@@ -54,7 +54,7 @@ function convert(filename, solution) {
     header2_align: 'right',
     subheader_align: 'left',
     y_align: 'alphabetic',
-    gray: '0',
+    grid_color: '0',
     header_pt: 20,
     header2_pt: 16,
     clue_entry_pt: 14,

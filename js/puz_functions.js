@@ -312,7 +312,7 @@ function puzdata_to_pdf(xw, options) {
     ,   num_columns: null
     ,   num_full_columns: null
     ,   column_padding: 10
-    ,   gray: 1
+    ,   grid_color: 1
     ,   under_title_spacing: 20
     ,   max_clue_pt: 14
     ,   min_clue_pt: 8
@@ -1002,7 +1002,7 @@ function puzdata_to_pdf(xw, options) {
     ,   x0: grid_xpos
     ,   y0: grid_ypos
     ,   cell_size: grid_width / xw.metadata.width
-    ,   gray: options.gray
+    ,   grid_color: options.grid_color
     ,   number_pct: options.number_pct
     ,   shade: options.shade
     };
