@@ -149,7 +149,7 @@ function draw_crossword_grid(doc, xw, options) {
     ,   y0: 20
     ,   cell_size: 24
     ,   grid_size: 360
-    ,   gray: 1
+    ,   grid_color: 1
     ,   letter_pct: 62
     ,   number_pct: 30
     ,   shade: false
@@ -170,25 +170,6 @@ function draw_crossword_grid(doc, xw, options) {
     /** Function to draw a square **/
     function draw_square(doc, x1, y1, cell_size, number, letter, filled, cell, barsOnly=false) {
       if (!barsOnly) {
-        // thank you https://stackoverflow.com/a/5624139
-        // todo(terry): do we even need this? jspdf accepts hex.
-        function hexToRgb(hex) {
-            hex = hex || '#FFFFFF';
-            // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
-            var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-            hex = hex.replace(shorthandRegex, function(_, r, g, b) {
-                return r + r + g + g + b + b;
-            });
-
-
-            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            } : null;
-        }
-
         var MIN_NUMBER_SIZE = 5.5;
 
         var filled_string = (filled ? 'F' : '');
@@ -199,6 +180,7 @@ function draw_crossword_grid(doc, xw, options) {
         var letter_pct_down = 4/5;
 
         // for "clue" cells we set the background and text color
+        // todo(terry): what is a clue cell?
         doc.setTextColor(0, 0, 0);
         if (cell.clue) {
           //doc.setTextColor(255, 255, 255);
@@ -207,16 +189,18 @@ function draw_crossword_grid(doc, xw, options) {
 
         if (cell['background-color'] || (cell['background-shape'] && options.shade)) {
             var filled_string = 'F';
-            var rgb = hexToRgb(cell['background-color'] || '#D9D9D9');
-            doc.setFillColor(rgb.r, rgb.g, rgb.b);
-            doc.setDrawColor(options.gray.toString());
+            var color = cell['background-color'] || '#D9D9D9';
+            // todo(terry): need to double check that shading works
+            doc.setFillColor(color);
+            doc.setDrawColor(options.grid_color.toString());
+
             // Draw one filled square and then one unfilled
             // todo(terry): shouldn't we just draw the background once...
             doc.rect(x1, y1, cell_size, cell_size, filled_string);
             doc.rect(x1, y1, cell_size, cell_size);
         } else {
-            doc.setFillColor(options.gray.toString());
-            doc.setDrawColor(options.gray.toString());
+            doc.setFillColor(options.grid_color.toString());
+            doc.setDrawColor(options.grid_color.toString());
 
             // draw the bounding box for all squares -- even "clue" squares
             doc.rect(x1, y1, cell_size, cell_size);
@@ -226,7 +210,6 @@ function draw_crossword_grid(doc, xw, options) {
         }
 
         // numbers
-        //doc.setFontType('normal');
         doc.setFontSize(number_size);
         doc.text(x1 + number_offset, y1 + number_size, number);
 
@@ -236,7 +219,6 @@ function draw_crossword_grid(doc, xw, options) {
         doc.text(x1 + cell_size - number_offset, y1 + number_size, top_right_number, null, null, 'right');
 
         // letters
-        //doc.setFontType('normal');
         doc.setFontSize(letter_size);
         doc.text(x1 + cell_size / 2, y1 + cell_size * letter_pct_down, letter, null, null, 'center');
 
@@ -288,18 +270,23 @@ function draw_crossword_grid(doc, xw, options) {
         if (c.is_void || (c.type === 'block' && c['background-color'] === '#FFFFFF')) {
           return;
         }
+
         var x_pos = options.x0 + c.x * cell_size;
         var y_pos = options.y0 + c.y * cell_size;
+
         // letter
         var letter = c.solution || '';
-        if (!options.grid_letters) {letter = '';}
+        if (!options.grid_letters) {
+            letter = '';
+        }
         letter = letter || c.letter || '';
+
         var filled = c.type == 'block';
+
         // number
         var number = c['number'] || '';
         if (!options.grid_numbers) {number = '';}
-        // circle
-        var circle = c['background-shape'] == 'circle';
+
         // draw the square unless it's a void
         // or a block with a white background
         draw_square(doc, x_pos, y_pos, cell_size, number, letter, filled, c);
