@@ -305,6 +305,9 @@ function draw_crossword_grid(doc, xw, options) {
 function puzdata_to_pdf(xw, options) {
     var DEFAULT_OPTIONS = {
         outfile: 'puz.pdf'
+    ,   pdf_orientation: 'portrait'
+    ,   pdf_height: 11 // in
+    ,   pdf_width: 8.5 // in
     ,   margin: 20
     ,   side_margin: 20
     ,   bottom_margin: 140
@@ -438,12 +441,12 @@ function puzdata_to_pdf(xw, options) {
     var title = options.header_text;
 
     var PTS_PER_IN = 72;
-    var DOC_WIDTH = 8.5 * PTS_PER_IN;
-    var DOC_HEIGHT = 11 * PTS_PER_IN;
+    var DOC_WIDTH = options.pdf_width * PTS_PER_IN;
+    var DOC_HEIGHT = options.pdf_height * PTS_PER_IN;
 
     // This `doc` is discarded, it's just for querying `getTextWidth` and
     // computing rendered line length (vis-a-vis font etc).
-    var docOptions = { orientation: 'portrait', unit: 'pt', format: [DOC_WIDTH, DOC_HEIGHT] }
+    var docOptions = { orientation: options.pdf_orientation, unit: 'pt', format: [DOC_WIDTH, DOC_HEIGHT] }
     var doc = new jsPDF(docOptions);
 
     if (options.my_font.length > 0) {
