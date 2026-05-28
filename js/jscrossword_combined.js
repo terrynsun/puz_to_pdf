@@ -1892,10 +1892,10 @@ function jscrossword_from_puz(puzdata) {
     var word_id = 1;
     var words = [];
     var clues = [];
+
     // across words
     var across_clues = [];
     Object.keys(puzdata.across_entries).forEach(clue_number => {
-        var this_word = puzdata.across_entries[clue_number];
         var word = {"id": word_id};
         var word_indexes = puzdata.acrossWordNbrs.reduce(function(a, e, i) {
             if (e == clue_number) {
@@ -1910,10 +1910,10 @@ function jscrossword_from_puz(puzdata) {
         word_id = word_id + 1;
     });
     clues.push({"title": "ACROSS", "clue": across_clues});
+
     // down words
     var down_clues = [];
     Object.keys(puzdata.down_entries).forEach(clue_number => {
-        var this_word = puzdata.down_entries[clue_number];
         var word = {"id": word_id};
         var word_indexes = puzdata.downWordNbrs.reduce(function(a, e, i) {
             if (e == clue_number) {

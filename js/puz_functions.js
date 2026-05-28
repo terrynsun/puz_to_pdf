@@ -9,9 +9,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const light_bg_padding = 3;
-const bg_color = '#dfffd1';
-
 window.jsPDF = window.jspdf.jsPDF;
 
 /* function to strip HTML tags */
@@ -153,7 +150,6 @@ function draw_crossword_grid(doc, xw, options) {
     ,   x0: 20
     ,   y0: 20
     ,   cell_size: 24
-    ,   grid_size: 360
     ,   grid_color: 1
     ,   letter_pct: 62
     ,   number_pct: 30
@@ -411,7 +407,10 @@ function puzdata_to_pdf(xw, options) {
             options.num_full_columns = 1;
         }
     } else {
-        if (options.columns == "2") {
+        if (options.columns == "1") {
+            options.num_columns = 1;
+            options.num_full_columns = 1;
+        } else if (options.columns == "2") {
             options.num_columns = 2;
             options.num_full_columns = 0;
         } else if (options.columns == "3") {
@@ -433,10 +432,11 @@ function puzdata_to_pdf(xw, options) {
         }
     }
 
-    // The maximum font size of title and author
+    // Margins
     var top_margin = options.top_margin;
     var side_margin = options.side_margin;
     var bottom_margin = options.bottom_margin;
+    // starting value (we'll add header title height to this later)
     var header_height = options.under_title_spacing;
 
     /* Calculate header */
@@ -494,12 +494,11 @@ function puzdata_to_pdf(xw, options) {
     // Title is an array
     title = doc.splitTextToSize(title, max_width);
     if (title) {
-        // multiple by the _number of lines of the title_ there are
+        // multiply by the _number of lines of the title_ there are
         header_height += 1.15 * title.length * options.header_pt;
     }
 
-    //right-header
-
+    // Right-header (header2)
     var author_xpos = DOC_WIDTH - side_margin;
     var author_ypos = top_margin;
     var author = options.header2_text;
@@ -608,12 +607,29 @@ function puzdata_to_pdf(xw, options) {
     // Computed column width: (page - margins - col padding) divided by columns
     var col_width = (DOC_WIDTH - (2 * side_margin) - (options.num_columns - 1) * options.column_padding) / options.num_columns;
 
+    /* Compute grid width. */
     // The grid is under all but the first few columns
     var grid_width = DOC_WIDTH - (2 * side_margin) - options.num_full_columns * (col_width + options.column_padding);
+
+    // Square grids need to get made smaller, in my case
+    // (todo: is this a weird landscape mode situation)
+    if (xw.metadata.width == xw.metadata.height) {
+        grid_width = 190;
+    }
+
+    // Manually handle the 1-column case, since the second "column" is the grid.
+    if (options.num_columns == 1) {
+        console.log('manual spacing for 1-column layout');
+        col_width = (DOC_WIDTH - (2 * side_margin) - grid_width - 3*options.column_padding) / 2;
+    }
 
     // If only two columns, grid size is limited
     if (options.columns == "new" || options.num_columns == 2) {
         grid_width = DOC_WIDTH - 2 * side_margin;
+    }
+
+    if (options.grid_width) {
+        grid_width = options.grid_width;
     }
 
     // We change the grid width and height if num_full_columns == 0
@@ -622,6 +638,7 @@ function puzdata_to_pdf(xw, options) {
         // set the height to be (about) half of the available area
         grid_height = DOC_HEIGHT * 4/9;
         grid_width = (grid_height / xw_height) * xw_width;
+
         // however! if this is bigger than allowable, re-calibrate
         if (grid_width > (DOC_WIDTH - 2 * top_margin)) {
             grid_width = (DOC_WIDTH - 2 * top_margin);
@@ -629,6 +646,7 @@ function puzdata_to_pdf(xw, options) {
         }
     }
 
+    /* Calculate other grid values. */
     var grid_height = (grid_width / xw.metadata.width) * xw.metadata.height;
     // x and y position of grid
     var grid_xpos = DOC_WIDTH - side_margin - grid_width;
@@ -641,6 +659,12 @@ function puzdata_to_pdf(xw, options) {
     if (options.num_columns == 2 || options.columns == "new") {
         grid_xpos = (DOC_WIDTH - grid_width) / 2;
     }
+
+    // Smaller grids can be centered between the last two columns
+    if (xw.metadata.width == xw.metadata.height) {
+        grid_xpos -= ((2*col_width + options.column_padding) - grid_width)/2;
+    }
+
     var grid_ypos = DOC_HEIGHT - bottom_margin - grid_height - options.copyright_pt;
 
     /* Find an appropriate font size */
@@ -769,7 +793,9 @@ function puzdata_to_pdf(xw, options) {
             }
         }
 
-        column_clue_padding[current_column] = ((max_line_ypos - (top_margin + header_height)) - ((lines_in_column) * (clue_pt + line_padding)))/(clues_in_column-1);
+        column_clue_padding[current_column] =
+            ((max_line_ypos - (top_margin + header_height)) - ((lines_in_column) * (clue_pt + line_padding)))
+            / (clues_in_column - 1);
 
         // if clues won't fit, shrink the clue
         if (current_column > (options.num_columns - 1)) {
@@ -791,12 +817,15 @@ function puzdata_to_pdf(xw, options) {
         }
 
         // if the last column's clues are too spaced out, increase padding
-        else if ((column_clue_padding[current_column] > spacing_strictness * column_clue_padding[current_column-1]) && (clue_padding < 2*clue_pt)) {
+        else if (
+            (column_clue_padding[current_column] > spacing_strictness * column_clue_padding[current_column-1])
+            && (clue_padding < 2*clue_pt))
+        {
             //console.log("increasing clue padding");
             clue_padding += clue_pt / 20;
             emergency_button++;
-            if (emergency_button > 20){
-                //console.log("struggle bussing");
+            if (emergency_button > 20) {
+                console.log("having issues, might prefer to change grid size");
                 //console.log("last column padding:" + column_clue_padding[current_column] + " // second-to-last column padding:" + column_clue_padding[current_column-1]);
                 clue_pt = options.max_clue_pt;
                 clue_padding = clue_pt * options.clue_spacing;
@@ -817,17 +846,22 @@ function puzdata_to_pdf(xw, options) {
     doc.setFontSize(clue_pt);
 
     /* Render background image if there is one */
-    var img_path = path.resolve('imgs/bg_leaf.png');
-    let img = fs.readFileSync(img_path, {encoding: 'base64'});
-    doc.addImage(img, "png", 0, 0, DOC_WIDTH, DOC_HEIGHT);
+    if (options.bg_img) {
+        var img_path = path.resolve(options.bg_img);
+        let img = fs.readFileSync(img_path, {encoding: 'base64'});
+        doc.addImage(img, "png", 0, 0, DOC_WIDTH, DOC_HEIGHT);
+    }
 
-    // // Flood entire background
-    doc.setFillColor(bg_color);
-    doc.rect(
-        side_margin - light_bg_padding, top_margin - light_bg_padding,
-        DOC_WIDTH - side_margin * 2 + light_bg_padding*2,
-        DOC_HEIGHT - top_margin - bottom_margin + light_bg_padding*2,
-        'F');
+    if (options.bg_color) {
+        // Flood entire background
+        const light_bg_padding = 10;
+        doc.setFillColor(options.bg_color);
+        doc.rect(
+            side_margin - light_bg_padding, top_margin - light_bg_padding,
+            DOC_WIDTH - side_margin * 2 + light_bg_padding*2,
+            DOC_HEIGHT - top_margin - bottom_margin + light_bg_padding*2,
+            'F');
+    }
 
     /* Render logo if there is one - TODO(terry) changed this to filepath */
     if (options.logo) {
@@ -841,16 +875,6 @@ function puzdata_to_pdf(xw, options) {
     var line_margin = 1.5 * doc.getTextWidth(' ');
     var line_xpos = num_xpos + line_margin;
     var line_ypos = top_margin + header_height + clue_pt;
-
-    const clue_bottom_line = DOC_HEIGHT - bottom_margin
-    const col_background_width = col_width + light_bg_padding*2;
-
-    const left_margin = num_xpos - (num_margin + line_margin);
-    // Draw first column rectangle (TODO)
-    // doc.setFillColor(bg_color);
-    // doc.rect(
-    //     num_xpos - (num_margin + line_margin), line_ypos - clue_pt - light_bg_padding,
-    //     col_background_width, clue_bottom_line - (line_ypos - clue_pt), 'F');
 
     var current_column = 0;
     var clue_padding = column_clue_padding[0];
@@ -891,7 +915,9 @@ function puzdata_to_pdf(xw, options) {
             // Split our clue
             var lines = split_text_to_size_bi(clue, col_width - (num_margin + line_margin), doc, options.clue_font, i == 0);
 
-            if (!manual_spacing
+            // todo(terry): janky: don't continue if it's the last column
+            const last_column = current_column == options.num_columns - 1;
+            if (!manual_spacing && !last_column
                 && (( (line_ypos + ((lines.length - 1) * (clue_pt + line_padding))) > max_line_ypos + .001)
                 || (!lines[0] && skip_column))) {
 
@@ -901,6 +927,14 @@ function puzdata_to_pdf(xw, options) {
                 line_xpos = num_xpos + line_margin;
                 line_ypos = top_margin + header_height + clue_pt;
                 clue_padding = column_clue_padding[current_column];
+
+                // infinity clue padding may happen when there is only 1 clue,
+                // or there were columns generated during resizing that don't
+                // exist anymore
+                if (!isFinite(clue_padding) || isNaN(clue_padding)) {
+                    console.log('infinity clue padding');
+                    clue_padding = 0;
+                }
                 heading_pt = 0;
 
                 var draw_ypos = line_ypos;
@@ -908,13 +942,6 @@ function puzdata_to_pdf(xw, options) {
                     // short column (under grid)
                     draw_ypos += grid_height + options.grid_padding - options.copyright_pt;
                 }
-
-                // doc.setFillColor(bg_color);
-                // doc.rect(num_xpos - (num_margin + line_margin),
-                //     draw_ypos - light_bg_padding,
-                //     col_background_width,
-                //     clue_bottom_line - draw_ypos,
-                //     'F');
 
                 // if the padding is ridiculous, no vertical justification
                 if (clue_padding > 2.5 * clue_pt) {
@@ -949,7 +976,8 @@ function puzdata_to_pdf(xw, options) {
                         }
                     }
 
-                    heading_pt = 2;
+                    // terry: changed this so headers aren't as big
+                    heading_pt = 1;
                     line_ypos += heading_pt;
 
                     // Write heading (centered)
@@ -991,27 +1019,11 @@ function puzdata_to_pdf(xw, options) {
     }
 
     doc.setFontSize(options.header_pt);
-    doc.setFont(options.header_font, 'bold');
-
-    // Title background rect
-    // doc.setFillColor(bg_color);
-    // doc.rect(left_margin,
-    //     title_ypos - options.header_pt,
-    //     doc.getTextWidth(title) + light_bg_padding*2,
-    //     options.header_pt + light_bg_padding, 'F');
-
+    doc.setFont(options.header_font, 'normal');
     doc.text(title_xpos, title_ypos, title, {align: xalign, baseline: baseline});
 
     /* Render right-header */
     if (options.right_header) {
-        // only supports right-align author
-        // const author_width = doc.getTextWidth(author);
-        // doc.setFillColor(bg_color);
-        // doc.rect(author_xpos - author_width - light_bg_padding,
-        //     title_ypos - options.header_pt,
-        //     author_width + light_bg_padding*2,
-        //     options.header_pt + light_bg_padding, 'F');
-
         doc.setFontSize(options.header2_pt);
         doc.text(author_xpos, author_ypos, author, {align: author_align, baseline: baseline});
     }
@@ -1060,14 +1072,6 @@ function puzdata_to_pdf(xw, options) {
         grid_ypos = top_margin + header_height + 3;
     }
 
-    /* TODO (terry): Grid background */
-    // let background_padding = 0;
-    // doc.setFillColor(bg_color);
-    // doc.rect(grid_xpos - background_padding / 2,
-    //     grid_ypos - background_padding / 2,
-    //     grid_width + background_padding,
-    //     grid_height + background_padding, 'F');
-
     /* Render copyright */
     if (options.copyright) {
         var copyright_text;
@@ -1095,16 +1099,6 @@ function puzdata_to_pdf(xw, options) {
         } else {
             copyright_ypos = grid_ypos + grid_height + options.border_width + options.copyright_pt + 3;
         }
-
-        // doc.setFillColor(bg_color);
-        // // this is behind only the text
-        // // const copyright_length = doc.getTextWidth(copyright_text) + 1;
-        // // doc.rect(grid_xpos + (grid_width - copyright_length),
-        // //     copyright_ypos - options.copyright_pt,
-        // //     copyright_length, options.copyright_pt+1, 'F');
-        // doc.rect(grid_xpos,
-        //     copyright_ypos - options.copyright_pt,
-        //     grid_width, options.copyright_pt+1, 'F');
 
         const copyright_lines = doc.splitTextToSize(copyright_text, grid_width);
         if (copyright_lines.length > 1) {
