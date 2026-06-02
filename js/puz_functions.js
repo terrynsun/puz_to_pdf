@@ -338,53 +338,61 @@ function puzdata_to_pdf(xw, options) {
     ,   pdf_orientation: 'portrait'
     ,   pdf_height: 11 // in
     ,   pdf_width: 8.5 // in
+    ,   outfile: null
+    ,   solution: false
+
     ,   top_margin: 20
     ,   side_margin: 20
     ,   bottom_margin: 140
-    ,   copyright_pt: 8
+
     ,   columns: "auto"
     ,   num_columns: null
     ,   num_full_columns: null
     ,   column_padding: 10
-    ,   grid_color: 1
-    ,   under_title_spacing: 20
+    ,   clue_font: 'RobotoCondensed'
     ,   max_clue_pt: 14
-    ,   min_clue_pt: 8
-    ,   grid_padding: 12
-    ,   outfile: null
+    ,   clue_spacing: 0.3
+    ,   y_align: 'top'
+
+        // applies to all headers
+    ,   header_font: 'RobotoCondensed'
+    ,   under_title_spacing: 20
 
     ,   header_text: null
-    ,   header2_text: null
-    ,   subheader_text: null
-    ,   header_align: 'left'
-    ,   header2_align: 'right'
-    ,   subheader_align: 'left'
-    ,   header_font: 'RobotoCondensed'
-    ,   clue_font: 'RobotoCondensed'
-    ,   grid_font: 'NunitoSans-Regular'
     ,   header_pt: 20
+    ,   header_align: 'left'
+    ,   header_indent: 0
+    ,   header_width: 67
+
+    ,   header2_text: null
     ,   header2_pt: 16
-    ,   subheader_pt: 14
-    ,   y_align: 'top'
+    ,   header2_align: 'right'
     ,   right_header: false
+
+        // subheader is under header
     ,   subheader: false
+    ,   subheader_text: null
+    ,   subheader_pt: 14
+    ,   subheader_align: 'left'
+    ,   subheader_mt: 4
+    ,   subheader_indent: 0
+
+    ,   copyright: true
+    ,   copyright_pt: 8
+    ,   copyright_text: null
+
+    ,   grid_font: 'NunitoSans-Regular'
+    ,   grid_placement: 'top'
+    ,   grid_padding: 12
+    ,   grid_color: 1 // accepts #rgb
     ,   line_width: 0.4
     ,   border_width: 0.4
-    ,   subheader_mt: 4
     ,   shade: true
-    ,   letter_pct: 62
-    ,   copyright: true
-    ,   copyright_text: null
-    ,   header_width: 67
-    ,   clue_spacing: 0.3
-    ,   grid_placement: 'top'
-    ,   solution: false
+
     ,   logo: null
     ,   logoX: 36
     ,   logoY: 36
     ,   logoS: 1.0
-    ,   header_indent: 0
-    ,   subheader_indent: 0
     };
 
     for (var key in DEFAULT_OPTIONS) {
@@ -640,7 +648,6 @@ function puzdata_to_pdf(xw, options) {
     var grid_width = DOC_WIDTH - (2 * side_margin) - options.num_full_columns * (col_width + options.column_padding);
 
     // Square grids need to get made smaller, in my case
-    // (todo: is this a weird landscape mode situation)
     if (xw.metadata.width == xw.metadata.height) {
         grid_width = 190;
     }
@@ -689,7 +696,7 @@ function puzdata_to_pdf(xw, options) {
     }
 
     // Smaller grids can be centered between the last two columns
-    if (xw.metadata.width == xw.metadata.height) {
+    if (xw.metadata.width == xw.metadata.height || options.grid_width && options.columns > 1) {
         grid_xpos -= ((2*col_width + options.column_padding) - grid_width)/2;
     }
 
@@ -854,7 +861,7 @@ function puzdata_to_pdf(xw, options) {
             emergency_button++;
             if (emergency_button > 20) {
                 console.log("having issues, might prefer to change grid size");
-                //console.log("last column padding:" + column_clue_padding[current_column] + " // second-to-last column padding:" + column_clue_padding[current_column-1]);
+
                 clue_pt = options.max_clue_pt;
                 clue_padding = clue_pt * options.clue_spacing;
                 spacing_strictness += 0.1;
@@ -1148,6 +1155,7 @@ function puzdata_to_pdf(xw, options) {
     ,   shade: options.shade
     ,   circle_shade: options.circle_shade
     ,   border_width: options.border_width
+    ,   border_color: options.border_color
     };
 
     doc.setFont(options.grid_font, 'bold');
