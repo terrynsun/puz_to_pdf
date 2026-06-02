@@ -150,22 +150,20 @@ function draw_crossword_grid(doc, xw, options) {
     ,   x0: 20
     ,   y0: 20
     ,   cell_size: 24
-    ,   grid_color: 1
-    ,   letter_pct: 62
-    ,   number_pct: 30
-    ,   shade: false
-    ,   rebus: []
+    ,   grid_color: 1 // accepts #rgb, defaults to black
+    ,   shade: false // accepts #rgb, defaults to gray if `true`:
+    ,   shade_outline: false // accepts #rgb, defaults to grid_color otherwise
     ,   line_width: 0.7
+    ,   border_width: 0.7 // draws if greater than line_width
+    ,   border_color: 1 // defaults to grid_color
     ,   bar_width: 2
+    ,   number_size: null
+    ,   number_color: 1 // accepts #rgb, defaults to black
     };
 
-    for (var key in DEFAULT_OPTIONS) {
-        if (!DEFAULT_OPTIONS.hasOwnProperty(key)) continue;
-        if (!options.hasOwnProperty(key)) {
-            options[key] = DEFAULT_OPTIONS[key];
-        }
-    }
+    options = { ...DEFAULT_OPTIONS, ...options };
 
+    doc.setLineWidth(options.line_width);
     var cell_size = options.cell_size;
 
     /** Function to draw a square **/
@@ -175,29 +173,35 @@ function draw_crossword_grid(doc, xw, options) {
 
         var filled_string = (filled ? 'F' : '');
         var number_offset = cell_size / 20;
-        var number_size = cell_size / 3.5 < MIN_NUMBER_SIZE ? MIN_NUMBER_SIZE : cell_size / 3.5;
-        var letter_length = letter.length;
-        var letter_size = cell_size / (1.5 + 0.5 * (letter_length - 1));
-        var letter_pct_down = 4/5;
+        var number_size = options.number_size ||
+              (cell_size / 3.5 < MIN_NUMBER_SIZE ? MIN_NUMBER_SIZE : cell_size / 3.5);
 
         // for "clue" cells we set the background and text color
         // todo(terry): what is a clue cell?
         doc.setTextColor(0, 0, 0);
         if (cell.clue) {
-          //doc.setTextColor(255, 255, 255);
           cell['background-color'] = '#CCCCCC';
         }
 
+        // puz files only export circles (background-shape); shades are set manually in my code
         if (cell['background-color'] || (cell['background-shape'] && options.shade)) {
-            var filled_string = 'F';
-            var color = cell['background-color'] || '#D9D9D9';
-            // todo(terry): need to double check that shading works
-            doc.setFillColor(color);
-            doc.setDrawColor(options.grid_color.toString());
+            var input_color = '#D9D9D9';
+            if (typeof(options.shade) === 'string') {
+                input_color = options.shade;
+            }
+            var color = cell['background-color'] || input_color;
 
-            // Draw one filled square and then one unfilled
-            // todo(terry): shouldn't we just draw the background once...
-            doc.rect(x1, y1, cell_size, cell_size, filled_string);
+            doc.setFillColor(color);
+
+            // Draw one filled square (interior) and unfilled (with default or
+            // provided color).
+            doc.setDrawColor(options.grid_color.toString());
+            doc.rect(x1, y1, cell_size, cell_size, 'F');
+
+            var shade_outline_color = options.shade_outline || options.grid_color;
+            console.log(shade_outline_color);
+            console.log(options);
+            doc.setDrawColor(shade_outline_color);
             doc.rect(x1, y1, cell_size, cell_size);
         } else {
             doc.setFillColor(options.grid_color.toString());
@@ -220,12 +224,22 @@ function draw_crossword_grid(doc, xw, options) {
         doc.text(x1 + cell_size - number_offset, y1 + number_size, top_right_number, null, null, 'right');
 
         // letters
-        doc.setFontSize(letter_size);
-        doc.text(x1 + cell_size / 2, y1 + cell_size * letter_pct_down, letter, null, null, 'center');
+        if (letter) {
+            var letter_length = letter.length;
+            var letter_size = cell_size / (1.5 + 0.5 * (letter_length - 1));
+            var letter_pct_down = 4/5;
+            doc.setFontSize(letter_size);
+            doc.text(x1 + cell_size / 2, y1 + cell_size * letter_pct_down, letter, null, null, 'center');
+        }
 
-        // circles
+        // circles: shade may be provided, or empty circle will be drawn.
         if (cell['background-shape'] && !options.shade) {
-            doc.circle(x1+cell_size / 2, y1+cell_size / 2, cell_size / 2);
+            if (options.circle_shade) {
+                doc.setFillColor(options.circle_shade);
+                doc.circle(x1+cell_size / 2, y1+cell_size / 2, cell_size / 2, 'F');
+            } else {
+                doc.circle(x1+cell_size / 2, y1+cell_size / 2, cell_size / 2);
+            }
         }
       }
 
@@ -300,6 +314,21 @@ function draw_crossword_grid(doc, xw, options) {
         var y_pos = options.y0 + c.y * cell_size;
         draw_square(doc, x_pos, y_pos, cell_size, '', '', false, c, true);
     });
+
+    // Draw border
+    if (options.border_width > options.line_width) {
+        // todo ... values are reconstructed from outer scope
+        const grid_width = options.cell_size * xw.metadata.width;
+        const grid_height = options.cell_size * xw.metadata.height;
+
+        const border_color = options.border_color || options.grid_color || '#000000';
+        doc.setDrawColor(border_color);
+        doc.setLineWidth(options.border_width);
+        doc.rect(options.x0 - (options.border_width / 2),
+            options.y0 - (options.border_width / 2),
+            grid_width + options.border_width,
+            grid_height + options.border_width);
+    }
 }
 
 /** Create a PDF (requires jsPDF) **/
@@ -344,7 +373,6 @@ function puzdata_to_pdf(xw, options) {
     ,   subheader_mt: 4
     ,   shade: true
     ,   letter_pct: 62
-    ,   number_pct: 30
     ,   copyright: true
     ,   copyright_text: null
     ,   header_width: 67
@@ -1117,22 +1145,13 @@ function puzdata_to_pdf(xw, options) {
     ,   y0: grid_ypos
     ,   cell_size: grid_width / xw.metadata.width
     ,   grid_color: options.grid_color
-    ,   number_pct: options.number_pct
     ,   shade: options.shade
+    ,   circle_shade: options.circle_shade
+    ,   border_width: options.border_width
     };
 
     doc.setFont(options.grid_font, 'bold');
-    doc.setLineWidth(options.line_width);
     draw_crossword_grid(doc, xw, grid_options);
-
-    // Draw border
-    if (options.border_width > options.line_width) {
-        doc.setLineWidth(options.border_width);
-        doc.rect(grid_xpos - (options.border_width / 2),
-            grid_ypos - (options.border_width / 2),
-            grid_width + options.border_width,
-            grid_height + options.border_width);
-    }
 
     if (options.columns == "new") {
         doc.movePage(2, 1);
