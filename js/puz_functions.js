@@ -42,14 +42,60 @@ function traverseTree(htmlDoc, agg=[]) {
     return agg;
 }
 
+const emojiRegex = /\p{Emoji_Presentation}/u;
+const containsEmoji = (text) => emojiRegex.test(text);
+
+const asianRegex = /[\p{Script=Han}\p{Script=Hangul}]/u;
+const containsAsian = (text) => asianRegex.test(text);
+
+const splitAll = (text) => text.split(/(?<=\p{Emoji_Presentation}|\p{Script=Han}|\p{Script=Hangul})|(?=\p{Emoji_Presentation}|\p{Script=Han}|\p{Script=Hangul})/u);
+
+const anyRegex = /[\p{Emoji_Presentation}\p{Script=Han}\p{Script=Hangul}]/u;
+const containsAnyNonAscii = (text) => anyRegex.test(text);
+
+const getNonAsciiTextWidth = (doc, text, defaultFont, fontSize) => {
+    doc.setFontSize(fontSize);
+    var lines = splitAll(text);
+    var len = 0;
+
+    for (var line of lines) {
+        if (containsAsian(line)) {
+            doc.setFont('KorChinese-Merged');
+        } else if (containsEmoji(line)) {
+            doc.setFont('NotoEmoji-Regular');
+        } else {
+            doc.setFont(defaultFont);
+        }
+
+        len += doc.getTextWidth(line);
+    }
+    return len;
+}
+
 /* Print a line of text that may be bolded or italicized */
 const printCharacters = (doc, textObject, startY, startX, fontSize, font) => {
+    doc.setFontSize(fontSize);
     if (!textObject.length) {
         return;
     }
 
-    if (typeof(textObject) == 'string') {
-        //var myText = ASCIIFolder.foldReplacing(textObject, '*')
+    if (containsAnyNonAscii(textObject)) {
+        var lines = splitAll(textObject);
+
+        var xOffset = 0;
+        for (var line of lines) {
+            if (containsAsian(line)) {
+                doc.setFont('KorChinese-Merged');
+            } else if (containsEmoji(line)) {
+                doc.setFont('NotoEmoji-Regular-Subset');
+            } else {
+                doc.setFont(font);
+            }
+
+            doc.text(startX + xOffset, startY, line);
+            xOffset += doc.getTextWidth(line);
+        }
+    } else if (typeof(textObject) == 'string') {
         var myText = textObject;
         doc.text(startX, startY, myText);
     } else {
@@ -494,7 +540,7 @@ function puzdata_to_pdf(xw, options) {
     /* Calculate header */
     var title_xpos = side_margin + options.header_indent;
     var title_ypos = top_margin;
-    var xalign = options.header_align;
+    var header_align = options.header_align;
     var baseline = options.y_align;
     var title = options.header_text;
 
@@ -537,10 +583,10 @@ function puzdata_to_pdf(xw, options) {
     }
 
     // Title is an array
-    title = doc.splitTextToSize(title, max_width);
-    if (title) {
+    var titleLines = doc.splitTextToSize(title, max_width);
+    if (titleLines) {
         // multiply by the _number of lines of the title_ there are
-        header_height += 1.15 * title.length * options.header_pt;
+        header_height += 1.15 * titleLines.length * options.header_pt;
     }
 
     // Right-header (header2)
@@ -550,7 +596,7 @@ function puzdata_to_pdf(xw, options) {
     var author_align = options.header2_align;
 
     if (options.right_header) {
-        max_width = DOC_WIDTH - (2*side_margin + doc.getTextWidth(title[0]) + title_right_margin);
+        max_width = DOC_WIDTH - (2*side_margin + doc.getTextWidth(titleLines[0]) + title_right_margin);
 
         if (!options.header2_text) {
             author = xw.metadata.author.trim();
@@ -559,8 +605,8 @@ function puzdata_to_pdf(xw, options) {
         doc.setFontSize(options.header2_pt);
         author = doc.splitTextToSize(author, max_width);
 
-        if (author.length * options.header2_pt > title.length * options.header_pt) {
-            header_height += (author.length * options.header2_pt) - (title.length * options.header_pt);
+        if (author.length * options.header2_pt > titleLines.length * options.header_pt) {
+            header_height += (author.length * options.header2_pt) - (titleLines.length * options.header_pt);
         }
 
         if (baseline == 'alphabetic') {
@@ -568,7 +614,7 @@ function puzdata_to_pdf(xw, options) {
         }
 
         if (baseline == 'middle') {
-            author_ypos = top_margin + options.header_pt * title.length / 2;
+            author_ypos = top_margin + options.header_pt * titleLines.length / 2;
         }
 
         if (author_align == 'left') {
@@ -578,7 +624,7 @@ function puzdata_to_pdf(xw, options) {
 
     // Subheader
     var subheader_xpos = side_margin + options.subheader_indent;
-    var subheader_ypos = title_ypos + 1.15*options.header_pt * (title.length-1) + options.subheader_pt + options.subheader_mt;
+    var subheader_ypos = title_ypos + 1.15*options.header_pt * (titleLines.length-1) + options.subheader_pt + options.subheader_mt;
     var subheader_text = options.subheader_text;
     var subheader_align = options.subheader_align;
 
@@ -597,13 +643,13 @@ function puzdata_to_pdf(xw, options) {
             if (subheader_align == 'left') {
                 header_height += subheader_text.length * options.subheader_pt;
                 if (baseline == 'top') {
-                    subheader_ypos = title_ypos + options.header_pt * title.length + options.subheader_mt;
+                    subheader_ypos = title_ypos + options.header_pt * titleLines.length + options.subheader_mt;
                 }
             } else if (subheader_align == 'center') {
                 header_height += subheader_text.length * options.subheader_pt;
                 subheader_xpos = DOC_WIDTH / 2;
                 if (baseline == 'top') {
-                    subheader_ypos = title_ypos + options.header_pt * title.length + options.subheader_mt;
+                    subheader_ypos = title_ypos + options.header_pt * titleLines.length + options.subheader_mt;
                 }
             } else if (subheader_align == 'right') {
                 subheader_xpos = DOC_WIDTH - side_margin;
@@ -614,9 +660,9 @@ function puzdata_to_pdf(xw, options) {
                     subheader_ypos = author_ypos + (1.15 * options.header2_pt)
                         * (author.length - 1) + options.header2_pt + options.subheader_mt;
 
-                    if ((author.length * options.header2_pt) < (title.length * options.header_pt)) {
+                    if ((author.length * options.header2_pt) < (titleLines.length * options.header_pt)) {
                         header_height += (subheader_text.length * options.subheader_pt)
-                            - ((title.length * options.header_pt) - (author.length * options.header2_pt));
+                            - ((titleLines.length * options.header_pt) - (author.length * options.header2_pt));
                     }
                 } else {
                     header_height += subheader_text.length * options.subheader_pt;
@@ -1067,17 +1113,29 @@ function puzdata_to_pdf(xw, options) {
     /* Render title */
     doc.setFontSize(options.header_pt);
     doc.setFont(options.header_font, 'normal');
-    doc.text(title_xpos, title_ypos, title, {align: xalign, baseline: baseline});
+    // Title containing non-ascii characters is currently incompatible with
+    // non-left align.
+    if (containsAnyNonAscii(title)) {
+        // todo handle multiple author lines
+        printCharacters(doc, title, title_ypos, title_xpos, options.header_pt, options.header_font);
+    } else {
+        doc.text(title_xpos, title_ypos, title, {align: header_align, baseline: baseline});
+    }
 
     /* Render right-header */
     if (options.right_header) {
-        if (options.custom_font) {
-            // todo: this only sets the title, which I don't really want
-            // doc.setFont('KorChi-Subset', 'normal');
-            // doc.text(author_xpos, author_ypos, '徐', {align: author_align, baseline: baseline})
-            doc.setFont('NotoEmoji-Regular-Subset', 'normal');
-            doc.text(author_xpos, author_ypos, '🥛', {align: author_align, baseline: baseline})
+        if (containsAnyNonAscii(author[0])) {
+            // todo handle multiple author lines
+
+            // manually handle right-align by looking at text width.
+            if (author_align == 'right') {
+                const author_len = getNonAsciiTextWidth(doc, author[0], options.header_font, options.header2_pt);
+                printCharacters(doc, author[0], author_ypos, author_xpos - author_len, options.header2_pt, options.header_font);
+            } else {
+                printCharacters(doc, author[0], author_ypos, author_xpos, options.header2_pt, options.header_font);
+            }
         } else {
+            doc.setFont(options.header_font);
             doc.setFontSize(options.header2_pt);
             doc.text(author_xpos, author_ypos, author, {align: author_align, baseline: baseline});
         }
@@ -1105,7 +1163,7 @@ function puzdata_to_pdf(xw, options) {
         /* Render title */
         doc.setFontSize(options.header_pt);
         doc.setFont(options.header_font, 'bold');
-        doc.text(title_xpos, title_ypos, title, {align: xalign, baseline: baseline});
+        doc.text(title_xpos, title_ypos, title, {align: header_align, baseline: baseline});
 
         /* Render right-header */
         if (options.right_header) {
