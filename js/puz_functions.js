@@ -52,8 +52,7 @@ const printCharacters = (doc, textObject, startY, startX, fontSize, font) => {
         //var myText = ASCIIFolder.foldReplacing(textObject, '*')
         var myText = textObject;
         doc.text(startX, startY, myText);
-    }
-    else {
+    } else {
         textObject.map(row => {
             if (row.is_bold) {
                 doc.setFont(font, 'bold');
@@ -151,97 +150,112 @@ function draw_crossword_grid(doc, xw, options) {
     ,   y0: 20
     ,   cell_size: 24
     ,   grid_color: 1 // accepts #rgb, defaults to black
+
     ,   shade: false // accepts #rgb, defaults to gray if `true`:
     ,   shade_outline: false // accepts #rgb, defaults to grid_color otherwise
+
+    ,   circle_width: 0.7
     ,   line_width: 0.7
     ,   border_width: 0.7 // draws if greater than line_width
     ,   border_color: 1 // defaults to grid_color
+
     ,   bar_width: 2
     ,   number_size: null
     ,   number_color: 1 // accepts #rgb, defaults to black
+
+        // Janky way to suport drawing a second color
+    ,   second_color: null // accepts #rgb
+        // accepts a dict of [x, y] that lists cells to be drawn in second_color. this overrides other settings.
+    ,   second_color_cells: null
     };
 
     options = { ...DEFAULT_OPTIONS, ...options };
 
-    doc.setLineWidth(options.line_width);
     var cell_size = options.cell_size;
 
     /** Function to draw a square **/
     function draw_square(doc, x1, y1, cell_size, number, letter, filled, cell, barsOnly=false) {
-      if (!barsOnly) {
-        var MIN_NUMBER_SIZE = 5.5;
+        if (!barsOnly) {
+            var MIN_NUMBER_SIZE = 5.5;
 
-        var filled_string = (filled ? 'F' : '');
-        var number_offset = cell_size / 20;
-        var number_size = options.number_size ||
-              (cell_size / 3.5 < MIN_NUMBER_SIZE ? MIN_NUMBER_SIZE : cell_size / 3.5);
+            var filled_string = (filled ? 'F' : '');
+            var number_offset = cell_size / 20;
+            var number_size = options.number_size ||
+                (cell_size / 3.5 < MIN_NUMBER_SIZE ? MIN_NUMBER_SIZE : cell_size / 3.5);
 
-        // for "clue" cells we set the background and text color
-        // todo(terry): what is a clue cell?
-        doc.setTextColor(0, 0, 0);
-        if (cell.clue) {
-          cell['background-color'] = '#CCCCCC';
-        }
-
-        // puz files only export circles (background-shape); shades are set manually in my code
-        if (cell['background-color'] || (cell['background-shape'] && options.shade)) {
-            var input_color = '#D9D9D9';
-            if (typeof(options.shade) === 'string') {
-                input_color = options.shade;
+            // for "clue" cells we set the background and text color
+            // todo(terry): what is a clue cell?
+            doc.setTextColor(0, 0, 0);
+            if (cell.clue) {
+            cell['background-color'] = '#CCCCCC';
             }
-            var color = cell['background-color'] || input_color;
 
-            doc.setFillColor(color);
+            doc.setLineWidth(options.line_width);
+            // puz files only export circles (background-shape); shades are set manually in my code
+            if (cell['background-color'] || (cell['background-shape'] && options.shade)) {
+                var input_color = '#D9D9D9';
+                if (typeof(options.shade) === 'string') {
+                    input_color = options.shade;
+                }
+                var color = cell['background-color'] || input_color;
 
-            // Draw one filled square (interior) and unfilled (with default or
-            // provided color).
-            doc.setDrawColor(options.grid_color.toString());
-            doc.rect(x1, y1, cell_size, cell_size, 'F');
+                const cell_coords = `${cell.x},${cell.y}`;
+                if (options.second_color && options.second_color_cells
+                    && cell_coords in options.second_color_cells) {
+                    color = options.second_color;
+                }
 
-            var shade_outline_color = options.shade_outline || options.grid_color;
-            console.log(shade_outline_color);
-            console.log(options);
-            doc.setDrawColor(shade_outline_color);
-            doc.rect(x1, y1, cell_size, cell_size);
-        } else {
-            doc.setFillColor(options.grid_color.toString());
-            doc.setDrawColor(options.grid_color.toString());
+                doc.setFillColor(color);
 
-            // draw the bounding box for all squares -- even "clue" squares
-            doc.rect(x1, y1, cell_size, cell_size);
-            if (filled_string) {
-                doc.rect(x1, y1, cell_size, cell_size, filled_string);
-            }
-        }
+                // Draw one filled square (interior) and unfilled (with default or
+                // provided color).
+                doc.setDrawColor(options.grid_color.toString());
+                doc.rect(x1, y1, cell_size, cell_size, 'F');
 
-        // numbers
-        doc.setFontSize(number_size);
-        doc.text(x1 + number_offset, y1 + number_size, number);
-
-        // top-right numbers
-        var top_right_number = cell.top_right_number ? cell.top_right_number : '';
-        doc.setFontSize(number_size);
-        doc.text(x1 + cell_size - number_offset, y1 + number_size, top_right_number, null, null, 'right');
-
-        // letters
-        if (letter) {
-            var letter_length = letter.length;
-            var letter_size = cell_size / (1.5 + 0.5 * (letter_length - 1));
-            var letter_pct_down = 4/5;
-            doc.setFontSize(letter_size);
-            doc.text(x1 + cell_size / 2, y1 + cell_size * letter_pct_down, letter, null, null, 'center');
-        }
-
-        // circles: shade may be provided, or empty circle will be drawn.
-        if (cell['background-shape'] && !options.shade) {
-            if (options.circle_shade) {
-                doc.setFillColor(options.circle_shade);
-                doc.circle(x1+cell_size / 2, y1+cell_size / 2, cell_size / 2, 'F');
+                var shade_outline_color = options.shade_outline || options.grid_color;
+                doc.setDrawColor(shade_outline_color);
+                doc.rect(x1, y1, cell_size, cell_size);
             } else {
-                doc.circle(x1+cell_size / 2, y1+cell_size / 2, cell_size / 2);
+                doc.setFillColor(options.grid_color.toString());
+                doc.setDrawColor(options.grid_color.toString());
+
+                // draw the bounding box for all squares -- even "clue" squares
+                doc.rect(x1, y1, cell_size, cell_size);
+                if (filled_string) {
+                    doc.rect(x1, y1, cell_size, cell_size, filled_string);
+                }
+            }
+
+            // numbers
+            doc.setFontSize(number_size);
+            doc.setTextColor(options.number_color);
+            doc.text(x1 + number_offset, y1 + number_size, number);
+
+            // top-right numbers
+            var top_right_number = cell.top_right_number ? cell.top_right_number : '';
+            doc.setFontSize(number_size);
+            doc.text(x1 + cell_size - number_offset, y1 + number_size, top_right_number, null, null, 'right');
+
+            // letters
+            if (letter) {
+                var letter_length = letter.length;
+                var letter_size = cell_size / (1.5 + 0.5 * (letter_length - 1));
+                var letter_pct_down = 4/5;
+                doc.setFontSize(letter_size);
+                doc.text(x1 + cell_size / 2, y1 + cell_size * letter_pct_down, letter, null, null, 'center');
+            }
+
+            // circles: shade may be provided, or empty circle will be drawn.
+            if (cell['background-shape'] && !options.shade) {
+                if (options.circle_shade) {
+                    doc.setFillColor(options.circle_shade);
+                    doc.circle(x1+cell_size / 2, y1+cell_size / 2, cell_size / 2, 'F');
+                } else {
+                    doc.setLineWidth(options.circle_width);
+                    doc.circle(x1+cell_size / 2, y1+cell_size / 2, cell_size / 2);
+                }
             }
         }
-      }
 
       // bars
       cell.bar = {
@@ -1154,6 +1168,7 @@ function puzdata_to_pdf(xw, options) {
     ,   grid_color: options.grid_color
     ,   shade: options.shade
     ,   circle_shade: options.circle_shade
+    ,   line_width: options.line_width
     ,   border_width: options.border_width
     ,   border_color: options.border_color
     };
