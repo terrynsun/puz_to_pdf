@@ -507,15 +507,8 @@ function puzdata_to_pdf(xw, options) {
     var docOptions = { orientation: options.pdf_orientation, unit: 'pt', format: [DOC_WIDTH, DOC_HEIGHT] }
     var doc = new jsPDF(docOptions);
 
-    if (options.my_font.length > 0) {
-        doc.addFileToVFS("MyFont.ttf", options.my_font);
-        doc.addFont("MyFont.ttf", "myFont", "bold");
-        doc.addFont("MyFont.ttf", "myFont", "italic");
-        console.log(`Font {options.my_font} Added`);
-    }
-
     doc.setFontSize(options.header_pt);
-    doc.setFont(options.header_font, 'bold');
+    doc.setFont(options.header_font, 'normal');
 
     if (options.header_align == 'center') {
         title_xpos = DOC_WIDTH / 2;
@@ -1072,26 +1065,31 @@ function puzdata_to_pdf(xw, options) {
     }
 
     /* Render title */
-    if (options.my_font.length > 0) {
-        doc.addFileToVFS("MyFont.ttf", options.my_font);
-        doc.addFont("MyFont.ttf", "myFont", "bold");
-    }
-
     doc.setFontSize(options.header_pt);
     doc.setFont(options.header_font, 'normal');
     doc.text(title_xpos, title_ypos, title, {align: xalign, baseline: baseline});
 
     /* Render right-header */
     if (options.right_header) {
-        doc.setFontSize(options.header2_pt);
-        doc.text(author_xpos, author_ypos, author, {align: author_align, baseline: baseline});
+        if (options.custom_font) {
+            // todo: this only sets the title, which I don't really want
+            // doc.setFont('KorChi-Subset', 'normal');
+            // doc.text(author_xpos, author_ypos, '徐', {align: author_align, baseline: baseline})
+            doc.setFont('NotoEmoji-Regular-Subset', 'normal');
+            doc.text(author_xpos, author_ypos, '🥛', {align: author_align, baseline: baseline})
+        } else {
+            doc.setFontSize(options.header2_pt);
+            doc.text(author_xpos, author_ypos, author, {align: author_align, baseline: baseline});
+        }
     }
 
     /* Render subheader */
     if (options.subheader && subheader_text) {
+        doc.setTextColor(80);
+        doc.setFont(options.grid_font, 'bold');
         doc.setFontSize(options.subheader_pt);
-        doc.text(subheader_xpos, subheader_ypos, subheader_text, {align: subheader_align,  baseline: baseline});
-
+        doc.text(subheader_xpos, subheader_ypos, subheader_text,
+            {align: subheader_align,  baseline: baseline});
     }
 
     /* Add headers to new page */
@@ -1105,10 +1103,6 @@ function puzdata_to_pdf(xw, options) {
         }
 
         /* Render title */
-        if (options.my_font.length > 0) {
-            doc.addFileToVFS("MyFont.ttf", options.my_font);
-            doc.addFont("MyFont.ttf", "myFont", "bold");
-        }
         doc.setFontSize(options.header_pt);
         doc.setFont(options.header_font, 'bold');
         doc.text(title_xpos, title_ypos, title, {align: xalign, baseline: baseline});
