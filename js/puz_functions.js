@@ -359,23 +359,25 @@ function puzdata_to_pdf(xw, options) {
     ,   side_margin: 20
     ,   bottom_margin: 140
 
+    ,   clue_font: 'RobotoCondensed'
+    ,   header_font: 'RobotoCondensed'
+    ,   grid_font: 'NunitoSans-Regular'
+
     ,   columns: "auto"
     ,   num_columns: null
     ,   num_full_columns: null
     ,   column_padding: 10
-    ,   clue_font: 'RobotoCondensed'
     ,   max_clue_pt: 14
     ,   clue_spacing: 0.3
     ,   y_align: 'top'
 
         // applies to all headers
-    ,   header_font: 'RobotoCondensed'
     ,   under_title_spacing: 20
 
     ,   header_text: null
     ,   header_pt: 20
     ,   header_align: 'left'
-    ,   header_indent: 0
+    ,   header_indent: 0 // pt
     ,   header_width: 67
 
     ,   header2_text: null
@@ -390,12 +392,12 @@ function puzdata_to_pdf(xw, options) {
     ,   subheader_align: 'left'
     ,   subheader_mt: 4
     ,   subheader_indent: 0
+    ,   subheader_lower: false
 
     ,   copyright: true
     ,   copyright_pt: 8
     ,   copyright_text: null
 
-    ,   grid_font: 'NunitoSans-Regular'
     ,   grid_placement: 'top'
     ,   grid_padding: 12
     ,   grid_color: 1 // accepts #rgb
@@ -587,37 +589,45 @@ function puzdata_to_pdf(xw, options) {
     var subheader_text = options.subheader_text;
     var subheader_align = options.subheader_align;
 
-    if (options.subheader && subheader_text) {
-        header_height += options.subheader_mt
+    if (options.subheader_lower) {
+        subheader_ypos = DOC_HEIGHT - bottom_margin + 8;
+    } else {
+        if (options.subheader && subheader_text) {
+            header_height += options.subheader_mt
 
-        max_width = DOC_WIDTH - 2*side_margin;
+            max_width = DOC_WIDTH - 2*side_margin;
 
-        doc.setFontSize(options.subheader_pt);
-        subheader_text = doc.splitTextToSize(subheader_text, max_width);
+            doc.setFont(options.grid_font, 'bold');
+            doc.setFontSize(options.subheader_pt);
+            subheader_text = doc.splitTextToSize(subheader_text, max_width);
 
-        if (subheader_align == 'left') {
-            header_height += subheader_text.length * options.subheader_pt;
-            if (baseline == 'top') {
-                subheader_ypos = title_ypos + options.header_pt * title.length + options.subheader_mt;
-            }
-        } else if (subheader_align == 'center') {
-            header_height += subheader_text.length * options.subheader_pt;
-            subheader_xpos = DOC_WIDTH / 2;
-            if (baseline == 'top') {
-                subheader_ypos = title_ypos + options.header_pt * title.length + options.subheader_mt;
-            }
-        } else if (subheader_align == 'right') {
-            subheader_xpos = DOC_WIDTH - side_margin;
-            subheader_ypos = author_ypos + 1.15 * options.header2_pt * (author.length - 1) + options.subheader_pt + options.subheader_mt;
-
-            if (baseline == 'top') {
-                subheader_ypos = author_ypos + 1.15 * options.header2_pt * (author.length - 1) + options.header2_pt + options.subheader_mt;
-                if ((author.length * options.header2_pt) < (title.length * options.header_pt)) {
-                    header_height += (subheader_text.length * options.subheader_pt)
-                        - ((title.length * options.header_pt) - (author.length * options.header2_pt));
-                }
-            } else {
+            if (subheader_align == 'left') {
                 header_height += subheader_text.length * options.subheader_pt;
+                if (baseline == 'top') {
+                    subheader_ypos = title_ypos + options.header_pt * title.length + options.subheader_mt;
+                }
+            } else if (subheader_align == 'center') {
+                header_height += subheader_text.length * options.subheader_pt;
+                subheader_xpos = DOC_WIDTH / 2;
+                if (baseline == 'top') {
+                    subheader_ypos = title_ypos + options.header_pt * title.length + options.subheader_mt;
+                }
+            } else if (subheader_align == 'right') {
+                subheader_xpos = DOC_WIDTH - side_margin;
+                subheader_ypos = author_ypos + (1.15 * options.header2_pt)
+                    * (author.length - 1) + options.subheader_pt + options.subheader_mt;
+
+                if (baseline == 'top') {
+                    subheader_ypos = author_ypos + (1.15 * options.header2_pt)
+                        * (author.length - 1) + options.header2_pt + options.subheader_mt;
+
+                    if ((author.length * options.header2_pt) < (title.length * options.header_pt)) {
+                        header_height += (subheader_text.length * options.subheader_pt)
+                            - ((title.length * options.header_pt) - (author.length * options.header2_pt));
+                    }
+                } else {
+                    header_height += subheader_text.length * options.subheader_pt;
+                }
             }
         }
     }
@@ -848,7 +858,6 @@ function puzdata_to_pdf(xw, options) {
 
         // if clues won't fit, shrink the clue
         if (current_column > (options.num_columns - 1)) {
-            //console.log("decreasing font size");
             if (current_column > options.num_columns) {
                 clue_pt -= clue_pt / 10;
             } else {
@@ -860,7 +869,6 @@ function puzdata_to_pdf(xw, options) {
 
         // if clues don't take up all columns, increase clue size
         else if (current_column < options.num_columns -1) {
-            //console.log("increasing font size");
             clue_pt += clue_pt / 10;
             clue_padding = clue_pt * options.clue_spacing;
         }
@@ -870,9 +878,12 @@ function puzdata_to_pdf(xw, options) {
             (column_clue_padding[current_column] > spacing_strictness * column_clue_padding[current_column-1])
             && (clue_padding < 2*clue_pt))
         {
-            //console.log("increasing clue padding");
             clue_padding += clue_pt / 20;
             emergency_button++;
+            if (spacing_strictness > 10) {
+                console.log('looped too many times, crash out');
+                break;
+            }
             if (emergency_button > 20) {
                 console.log("having issues, might prefer to change grid size");
 
@@ -981,7 +992,6 @@ function puzdata_to_pdf(xw, options) {
                 // or there were columns generated during resizing that don't
                 // exist anymore
                 if (!isFinite(clue_padding) || isNaN(clue_padding)) {
-                    console.log('infinity clue padding');
                     clue_padding = 0;
                 }
                 heading_pt = 0;
